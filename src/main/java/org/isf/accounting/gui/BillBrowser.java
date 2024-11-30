@@ -688,25 +688,22 @@ public class BillBrowser extends ModalJFrame implements PatientBillListener {
 	}
 
 	private void updateDataSetWithGuarantor(LocalDateTime dateFrom, LocalDateTime dateTo, Patient patient, User guarantor) throws OHServiceException {
-		/*
-		 * Bills in the period
-		 */
-		if (patient != null) {
-			billPeriod = billBrowserManager.getBillsWithPatientAndGuarantor(dateFrom, dateTo, patient, guarantor);
-		} else {
-			billPeriod = billBrowserManager.getBillsWithGuarantor(dateFrom, dateTo, guarantor);
-		}
+	    System.out.println("Updating data set with guarantor: " + guarantor.getUserName() + " and patient: " + (patient != null ? patient.getName() : "None")); // Message de débogage
+	    // Bills in the period
+	    if (patient != null) {
+	        billPeriod = billBrowserManager.getBillsWithPatientAndGuarantor(dateFrom, dateTo, patient, guarantor);
+	        paymentsPeriod = billBrowserManager.getPaymentsWithPatientGuarantor(dateFrom, dateTo, patient, guarantor);
+	    } else {
+	        billPeriod = billBrowserManager.getBillsWithGuarantor(dateFrom, dateTo, guarantor);
+	        paymentsPeriod = billBrowserManager.getPaymentsWithGuarantor(dateFrom, dateTo, guarantor); // Change here to avoid calling getPaymentsWithPatientGuarantor
+	    }
 
-		/*
-		 * Payments in the period
-		 */
-		paymentsPeriod = billBrowserManager.getPaymentsWithPatientGuarantor(dateFrom, dateTo, patient, guarantor);
+	    // Bills not in the period but with payments in the period
+	    billFromPayments = billBrowserManager.getBillsWithGuarantor(paymentsPeriod, guarantor);
 
-		/*
-		 * Bills not in the period but with payments in the period
-		 */
-		billFromPayments = billBrowserManager.getBillsWithGuarantor(paymentsPeriod,guarantor);
+	    System.out.println("Bills and payments updated with guarantor"); // Message de débogage
 	}
+
 
 	private JButton getJButtonNew() {
 		if (jButtonNew == null) {
@@ -880,39 +877,43 @@ public class BillBrowser extends ModalJFrame implements PatientBillListener {
 			updateTotals();
 		}
 	}
-
+	
 	private JComboBox<User> getJComboBoxUserGuarantor() {
-		if (jComboBoxPersonnesGarantes == null) {
-			jComboBoxPersonnesGarantes = new JComboBox<>();
-			List<User> users;
-			try {
-				jComboBoxPersonnesGarantes.addItem(null);
-				users = userBrowserManager.getUser();
-				for (User user : users) {
-					jComboBoxPersonnesGarantes.addItem(user);
-				}
-			} catch (OHServiceException e) {
-				OHServiceExceptionUtil.showMessages(e);
-			}
+	    if (jComboBoxPersonnesGarantes == null) {
+	        jComboBoxPersonnesGarantes = new JComboBox<>();
+	        List<User> users;
+	        try {
+	            jComboBoxPersonnesGarantes.addItem(null);
+	            users = userBrowserManager.getUser();
+	            for (User user : users) {
+	                jComboBoxPersonnesGarantes.addItem(user);
+	            }
+	        } catch (OHServiceException e) {
+	            OHServiceExceptionUtil.showMessages(e);
+	        }
 
-			jComboBoxPersonnesGarantes.setPreferredSize(new Dimension(150, 25));
-			jComboBoxPersonnesGarantes.setFont(new Font("Arial", Font.PLAIN, 14));
-			jComboBoxPersonnesGarantes.addActionListener(actionEvent -> {
-				User selectedGuarantor = (User) jComboBoxPersonnesGarantes.getSelectedItem();
-				try {
-					if (selectedGuarantor != null && patientParent != null) {
-						updateDataSetWithGuarantor(dateFrom, dateTo, patientParent, selectedGuarantor);
-					}
-				} catch (OHServiceException e) {
-					e.printStackTrace();
-				}
-				updateTables();
-				updateTotals();
-			});
-
-		}
-		return jComboBoxPersonnesGarantes;
+	        jComboBoxPersonnesGarantes.setPreferredSize(new Dimension(150, 25));
+	        jComboBoxPersonnesGarantes.setFont(new Font("Arial", Font.PLAIN, 14));
+	        jComboBoxPersonnesGarantes.addActionListener(actionEvent -> {
+	            User selectedGuarantor = (User) jComboBoxPersonnesGarantes.getSelectedItem();
+	            try {
+	                if (selectedGuarantor != null) {
+	                    System.out.println("Guarantor Selected: " + selectedGuarantor.getUserName()); // Message de débogage
+	                    updateDataSetWithGuarantor(dateFrom, dateTo, patientParent, selectedGuarantor);
+	                } else {
+	                    System.out.println("No Guarantor Selected"); // Message de débogage
+	                    updateDataSet(dateFrom, dateTo, patientParent);
+	                }
+	                updateTables();
+	                updateTotals();
+	            } catch (OHServiceException e) {
+	                e.printStackTrace();
+	            }
+	        });
+	    }
+	    return jComboBoxPersonnesGarantes;
 	}
+
 
 	private JComboBox<String> getJComboUsers() {
 		if (jComboUsers == null) {
