@@ -268,7 +268,7 @@ public class PatientBillEdit extends JDialog implements SelectionListener {
 	private JButton jButtonCustom;
 	private JButton jButtonPickPatient;
 	private JButton jButtonTrashPatient;
-	private JComboBox<User> jComboBoxPersonnesGarantes;
+	private JComboBox<User> jComboBoxGuarantor;
 	private JLabel jLabelGuarantor;
 
 	private static final int PANEL_WIDTH = 450;
@@ -350,6 +350,10 @@ public class PatientBillEdit extends JDialog implements SelectionListener {
 	private int payItemsSaved;
 
 	private String user = UserBrowsingManager.getCurrentUser();
+
+	public boolean hasBillGuarantor() {
+		return GeneralData.ALLOWBILLGUARANTOR;
+	}
 
 	/**
 	 * new bill from {@link MainMenu}
@@ -859,9 +863,10 @@ public class PatientBillEdit extends JDialog implements SelectionListener {
 			jPanelDate.add(getJCalendarDate());
 			jPanelDate.add(getJButtonPickPatient());
 			jPanelDate.add(getJButtonTrashPatient());
-			jPanelDate.add(getJLabelGuarantor());
-			jPanelDate.add(getJComboBoxPersonnesGarantes());
-
+			if (hasBillGuarantor()) {
+				jPanelDate.add(getJLabelGuarantor());
+				jPanelDate.add(getJComboBoxGuarantor());
+			}
 			if (!GeneralData.getGeneralData().getSINGLEUSER()) {
 				jPanelDate.add(getJLabelUser());
 			}
@@ -884,29 +889,26 @@ public class PatientBillEdit extends JDialog implements SelectionListener {
 	}
 
 //Methode to create JComboBox :
-	private JComboBox<User> getJComboBoxPersonnesGarantes() {
-		if (jComboBoxPersonnesGarantes == null) {
-			jComboBoxPersonnesGarantes = new JComboBox<>();
-			List<User> users;
+	private JComboBox<User> getJComboBoxGuarantor() {
+		if (jComboBoxGuarantor == null) {
+			jComboBoxGuarantor = new JComboBox<>();
 			try {
-				users = userBrowserManager.getUser();
-
-				jComboBoxPersonnesGarantes.addItem(null);
+				List<User> users = userBrowserManager.getUser();
+				jComboBoxGuarantor.addItem(null);
 				for (User user : users) {
-					jComboBoxPersonnesGarantes.addItem(user);
+					jComboBoxGuarantor.addItem(user);
 				}
+
 				if (thisBill != null) {
-					jComboBoxPersonnesGarantes.setSelectedItem(thisBill.getGuarantor());
+					jComboBoxGuarantor.setSelectedItem(thisBill.getGuarantor());
 				}
 			} catch (OHServiceException e) {
 				OHServiceExceptionUtil.showMessages(e);
 			}
-
-			jComboBoxPersonnesGarantes.setPreferredSize(new Dimension(150, 25));
-			jComboBoxPersonnesGarantes.setFont(new Font("Arial", Font.PLAIN, 14));
-
+			jComboBoxGuarantor.setPreferredSize(new Dimension(150, 25));
+			jComboBoxGuarantor.setFont(new Font("Arial", Font.PLAIN, 14));
 		}
-		return jComboBoxPersonnesGarantes;
+		return jComboBoxGuarantor;
 	}
 
 	private JButton getJButtonTrashPatient() {
@@ -1259,153 +1261,109 @@ public class PatientBillEdit extends JDialog implements SelectionListener {
 		return GeneralData.ALLOWBILLGUARANTOR; // Assuming this is a flag or setting that determines if it's enabled
 	}
 
-	/*
-	 * private JButton getJButtonSave() { if (jButtonSave == null) { jButtonSave = new JButton(MessageBundle.getMessage("angal.common.save.btn"));
-	 * jButtonSave.setMnemonic(MessageBundle.getMnemonic("angal.common.save.btn.key")); jButtonSave.setMaximumSize(BUTTON_ACTION_SIZE); jButtonSave.setIcon(new
-	 * ImageIcon("rsc/icons/save_button.png")); jButtonSave.setHorizontalAlignment(SwingConstants.LEFT); jButtonSave.addActionListener(actionEvent -> { // On
-	 * vérifie si la fonctionnalité des garants est activée boolean isGuarantorEnabled = GeneralData.ALLOWBILLGUARANTOR;
-	 * System.out.println("Guarantor functionality enabled: " + isGuarantorEnabled);
-	 * 
-	 * // On vérifie l'état de paiement de la facture si la fonctionnalité des garants est désactivée if (!isGuarantorEnabled && balance.doubleValue() > 0) {
-	 * JOptionPane.showMessageDialog(this, "La facture doit être entièrement payée avant d'être enregistrée.", "Erreur", JOptionPane.ERROR_MESSAGE); return; }
-	 * 
-	 * loadDataset(); checkBill();
-	 * 
-	 * if (thisBill.getPriceList() == null) { thisBill.setPriceList(lstArray.get(0)); }
-	 * 
-	 * if (insert) { Bill newBill = new Bill(0, // Bill ID thisBill.getDate(), // from calendar null, // updateDate from most recent payment, will be set later
-	 * true, // is a PriceList? always true, non-pricelist not managed thisBill.getPriceList(), // List thisBill.getPriceList().getName(), // List name
-	 * thisBill.isPatient(), // is a Patient? thisBill.getBillPatient(), // Patient thisBill.isPatient() ? thisBill.getBillPatient().getName() :
-	 * jTextFieldPatient.getText(), // Patient Name paid ? "C" : "O", // CLOSED or OPEN TODO: enumerate bills status total.doubleValue(), // Total
-	 * balance.doubleValue(), // Balance user, // User thisBill.getAdmission()); // Admission
-	 * 
-	 * try {
-	 * 
-	 * User u = (User) jComboBoxPersonnesGarantes.getSelectedItem(); if (u != null) { newBill.setGuarantor(u); } //assigns a guarantor to an invoice if the
-	 * guarantor option is activated and a guarantor is selected if (isGuarantorEnabled) { User g = (User) jComboBoxPersonnesGarantes.getSelectedItem();
-	 * System.out.println("Selected Guarantor: " + (u != null ? u.getUserName() : "None")); if (u != null) { newBill.setGuarantor(u.getUserName()); } }
-	 * 
-	 * billBrowserManager.newBill(newBill, billItems, payItems); thisBill.setId(newBill.getId()); System.out.println("New bill inserted with ID: " +
-	 * newBill.getId()); } catch (OHServiceException ex) { OHServiceExceptionUtil.showMessages(ex, this); ex.printStackTrace(); return; }
-	 * fireBillInserted(newBill); dispose(); } else { Bill updateBill = new Bill(thisBill.getId(), // Bill ID thisBill.getDate(), // from calendar null, //
-	 * updateDate from most recent payment, will be set later true, // is a PriceList? always true, non-pricelist not managed thisBill.getPriceList(), // List
-	 * thisBill.getPriceList().getName(), // List name thisBill.isPatient(), // is a Patient? thisBill.getBillPatient(), // Patient thisBill.isPatient() ?
-	 * thisBill.getPatName() : jTextFieldPatient.getText(), // Patient Name paid ? "C" : "O", // CLOSED or OPEN total.doubleValue(), // Total
-	 * balance.doubleValue(), // Balance user, // User thisBill.getAdmission()); // Admission
-	 * 
-	 * User u = (User) jComboBoxPersonnesGarantes.getSelectedItem(); if (u != null) { updateBill.setGuarantor(u); } try {
-	 * billBrowserManager.updateBill(updateBill, billItems, payItems); System.out.println("Bill updated with ID: " + updateBill.getId()); } catch
-	 * (OHServiceException ex) { OHServiceExceptionUtil.showMessages(ex, this); ex.printStackTrace(); return; } fireBillInserted(updateBill); }
-	 * 
-	 * if (hasNewPayments()) { TxtPrinter.initialize(); new GenericReportBill(thisBill.getId(), "PatientBillPayments", false, !TxtPrinter.PRINT_WITHOUT_ASK); }
-	 * if (paid && GeneralData.RECEIPTPRINTER) { TxtPrinter.initialize(); if (TxtPrinter.PRINT_AS_PAID) { new GenericReportBill(thisBill.getId(),
-	 * GeneralData.PATIENTBILL, false, !TxtPrinter.PRINT_WITHOUT_ASK); } } RememberDates.setLastBillDate(thisBill.getDate()); dispose(); }); } return
-	 * jButtonSave; }
-	 */
 	private JButton getJButtonSave() {
-	    if (jButtonSave == null) {
-	        jButtonSave = new JButton(MessageBundle.getMessage("angal.common.save.btn"));
-	        jButtonSave.setMnemonic(MessageBundle.getMnemonic("angal.common.save.btn.key"));
-	        jButtonSave.setMaximumSize(BUTTON_ACTION_SIZE);
-	        jButtonSave.setIcon(new ImageIcon("rsc/icons/save_button.png"));
-	        jButtonSave.setHorizontalAlignment(SwingConstants.LEFT);
-	        jButtonSave.addActionListener(actionEvent -> {
-	            boolean isGuarantorEnabled = GeneralData.ALLOWBILLGUARANTOR;
+		if (jButtonSave == null) {
+			jButtonSave = new JButton(MessageBundle.getMessage("angal.common.save.btn"));
+			jButtonSave.setMnemonic(MessageBundle.getMnemonic("angal.common.save.btn.key"));
+			jButtonSave.setMaximumSize(BUTTON_ACTION_SIZE);
+			jButtonSave.setIcon(new ImageIcon("rsc/icons/save_button.png"));
+			jButtonSave.setHorizontalAlignment(SwingConstants.LEFT);
+			jButtonSave.addActionListener(actionEvent -> {
+				boolean isGuarantorEnabled = GeneralData.ALLOWBILLGUARANTOR;
 
-	            if (!isGuarantorEnabled && balance.doubleValue() > 0) {
-	                JOptionPane.showMessageDialog(this, "La facture doit être entièrement payée avant d'être enregistrée.", "Erreur", JOptionPane.ERROR_MESSAGE);
-	                return;
-	            }
+				if (!isGuarantorEnabled && balance.doubleValue() > 0) {
+					JOptionPane.showMessageDialog(this, MessageBundle.getMessage("angal.billbrowser.billmustbepaidbefore.save.msg"),
+									MessageBundle.getMessage("angal.common.error"), JOptionPane.ERROR_MESSAGE);
+					return;
+				}
 
-	            loadDataset();
-	            checkBill();
+				loadDataset();
+				checkBill();
 
-	            if (thisBill.getPriceList() == null) {
-	                thisBill.setPriceList(lstArray.get(0));
-	            }
+				if (thisBill.getPriceList() == null) {
+					thisBill.setPriceList(lstArray.get(0));
+				}
 
-	            try {
-	                if (insert) {
-	                    Bill newBill = createNewBill();
-	                    billBrowserManager.newBill(newBill, getSelectedBillItems(), payItems);
-	                    thisBill.setId(newBill.getId());
-	                    fireBillInserted(newBill);
-	                    JOptionPane.showMessageDialog(this, "Nouvelle facture insérée avec succès.", "Information", JOptionPane.INFORMATION_MESSAGE);
-	                } else {
-	                    Bill updateBill = createUpdateBill();
-	                    billBrowserManager.updateBill(updateBill, getSelectedBillItems(), payItems);
-	                    fireBillInserted(updateBill);
-	                    JOptionPane.showMessageDialog(this, "Facture mise à jour avec succès.", "Information", JOptionPane.INFORMATION_MESSAGE);
-	                }
+				try {
+					if (insert) {
+						Bill newBill = createNewBill();
+						billBrowserManager.newBill(newBill, getSelectedBillItems(), payItems);
+						thisBill.setId(newBill.getId());
+						fireBillInserted(newBill);
+					} else {
+						Bill updateBill = createUpdateBill();
+						billBrowserManager.updateBill(updateBill, getSelectedBillItems(), payItems);
+						fireBillInserted(updateBill);
+					}
 
-	                // Mise à jour de l'interface utilisateur après sauvegarde
-	                updateBillBrowser();
-	                JOptionPane.showMessageDialog(this, "Interface utilisateur mise à jour.", "Information", JOptionPane.INFORMATION_MESSAGE);
-
-	                if (hasNewPayments()) {
-	                    TxtPrinter.initialize();
-	                    new GenericReportBill(thisBill.getId(), "PatientBillPayments", false, !TxtPrinter.PRINT_WITHOUT_ASK);
-	                }
-	                if (paid && GeneralData.RECEIPTPRINTER) {
-	                    TxtPrinter.initialize();
-	                    if (TxtPrinter.PRINT_AS_PAID) {
-	                        new GenericReportBill(thisBill.getId(), GeneralData.PATIENTBILL, false, !TxtPrinter.PRINT_WITHOUT_ASK);
-	                    }
-	                }
-	                RememberDates.setLastBillDate(thisBill.getDate());
-	                dispose();
-	            } catch (OHServiceException ex) {
-	                OHServiceExceptionUtil.showMessages(ex, this);
-	                ex.printStackTrace();
-	            }
-	        });
-	    }
-	    return jButtonSave;
+					updateBillBrowser();
+					
+					if (hasNewPayments()) {
+						TxtPrinter.initialize();
+						new GenericReportBill(thisBill.getId(), "PatientBillPayments", false, !TxtPrinter.PRINT_WITHOUT_ASK);
+					}
+					if (paid && GeneralData.RECEIPTPRINTER) {
+						TxtPrinter.initialize();
+						if (TxtPrinter.PRINT_AS_PAID) {
+							new GenericReportBill(thisBill.getId(), GeneralData.PATIENTBILL, false, !TxtPrinter.PRINT_WITHOUT_ASK);
+						}
+					}
+					RememberDates.setLastBillDate(thisBill.getDate());
+					dispose();
+				} catch (OHServiceException ex) {
+					OHServiceExceptionUtil.showMessages(ex, this);
+					ex.printStackTrace();
+				}
+			});
+		}
+		return jButtonSave;
 	}
 
 	private Bill createNewBill() {
-	    Bill newBill = new Bill(0, thisBill.getDate(), null, true, thisBill.getPriceList(),
-	            thisBill.getPriceList().getName(), thisBill.isPatient(), thisBill.getBillPatient(),
-	            thisBill.isPatient() ? thisBill.getBillPatient().getName() : jTextFieldPatient.getText(),
-	            paid ? "C" : "O", total.doubleValue(), balance.doubleValue(), user, thisBill.getAdmission());
+		Bill newBill = new Bill(0, thisBill.getDate(), null, true, thisBill.getPriceList(),
+						thisBill.getPriceList().getName(), thisBill.isPatient(), thisBill.getBillPatient(),
+						thisBill.isPatient() ? thisBill.getBillPatient().getName() : jTextFieldPatient.getText(),
+						paid ? "C" : "O", total.doubleValue(), balance.doubleValue(), user, thisBill.getAdmission());
 
-	    User guarantor = (User) jComboBoxPersonnesGarantes.getSelectedItem();
-	    if (guarantor != null) {
-	        newBill.setGuarantor(guarantor);
-	    }
+		User guarantor = (User) jComboBoxGuarantor.getSelectedItem();
+		if (guarantor != null) {
+			newBill.setGuarantor(guarantor);
+		}
 
-	    if (GeneralData.ALLOWBILLGUARANTOR && guarantor != null) {
-	        newBill.setGuarantor(guarantor.getUserName());
-	    }
-	    return newBill;
+		if (GeneralData.ALLOWBILLGUARANTOR && guarantor != null) {
+			newBill.setGuarantor(guarantor.getUserName());
+		}
+		return newBill;
 	}
 
 	private Bill createUpdateBill() {
-	    Bill updateBill = new Bill(thisBill.getId(), thisBill.getDate(), null, true, thisBill.getPriceList(),
-	            thisBill.getPriceList().getName(), thisBill.isPatient(), thisBill.getBillPatient(),
-	            thisBill.isPatient() ? thisBill.getPatName() : jTextFieldPatient.getText(),
-	            paid ? "C" : "O", total.doubleValue(), balance.doubleValue(), user, thisBill.getAdmission());
+		Bill updateBill = new Bill(thisBill.getId(), thisBill.getDate(), null, true, thisBill.getPriceList(),
+						thisBill.getPriceList().getName(), thisBill.isPatient(), thisBill.getBillPatient(),
+						thisBill.isPatient() ? thisBill.getPatName() : jTextFieldPatient.getText(),
+						paid ? "C" : "O", total.doubleValue(), balance.doubleValue(), user, thisBill.getAdmission());
 
-	    User guarantor = (User) jComboBoxPersonnesGarantes.getSelectedItem();
-	    if (guarantor != null) {
-	        updateBill.setGuarantor(guarantor);
-	    }
-	    return updateBill;
+		User guarantor = (User) jComboBoxGuarantor.getSelectedItem();
+		if (guarantor != null) {
+			updateBill.setGuarantor(guarantor);
+		}
+		return updateBill;
 	}
 
 	private List<BillItems> getSelectedBillItems() {
-	    // Implémentation pour récupérer uniquement les éléments de facture sélectionnés
-	    return new ArrayList<>(billItems);
+		return new ArrayList<>(billItems);
 	}
 
 	private void updateBillBrowser() {
-	    loadDataset();
-	    updateGUI();
-	    updateTotals();
-	    JOptionPane.showMessageDialog(this, "Mise à jour des données terminée.", "Information", JOptionPane.INFORMATION_MESSAGE);
+		loadDataset();
+		updateGUI();
+		updateTotals();
+		JOptionPane.showMessageDialog(this,
+						MessageBundle.getMessage("angal.billbrowser.dataupdatesuccess.msg"),
+						MessageBundle.getMessage("angal.common.information"),
+						JOptionPane.INFORMATION_MESSAGE);
+
 	}
 
-	
 	private boolean hasNewPayments() {
 		return (insert && !payItems.isEmpty()) || (payItems.size() - payItemsSaved) > 0;
 	}

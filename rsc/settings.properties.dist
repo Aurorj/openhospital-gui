@@ -9,6 +9,7 @@ DEMODATA=off
 APISERVER=off
 
 # internal settings, modules, directories
+ALLOWBILLGUARANTOR=no
 LANGUAGE=OH_LANGUAGE
 SINGLEUSER=YES_OR_NO
 DEBUG=no

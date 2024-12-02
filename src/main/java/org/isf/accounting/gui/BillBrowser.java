@@ -112,13 +112,32 @@ public class BillBrowser extends ModalJFrame implements PatientBillListener {
 	@Override
 	public void billInserted(AWTEvent event) {
 		if (patientParent != null) {
-			try {
-				updateDataSet(dateFrom, dateTo, patientParent);
-			} catch (OHServiceException ohServiceException) {
-				LOGGER.error(ohServiceException.getMessage(), ohServiceException);
+			User selectedGuarantor = (User) jComboBoxGuarantor.getSelectedItem();
+			if (selectedGuarantor == null) {
+				try {
+					updateDataSet(dateFrom, dateTo, patientParent);
+				} catch (OHServiceException ohServiceException) {
+					LOGGER.error(ohServiceException.getMessage(), ohServiceException);
+				}
+			} else {
+				try {
+					updateDataSetWithGuarantor(dateFrom, dateTo, patientParent, selectedGuarantor);
+				} catch (OHServiceException ohServiceException) {
+					LOGGER.error(ohServiceException.getMessage(), ohServiceException);
+				}
 			}
+
 		} else {
-			updateDataSet(dateFrom, dateTo);
+			User selectedGuarantor = (User) jComboBoxGuarantor.getSelectedItem();
+			if (selectedGuarantor == null) {
+				updateDataSet(dateFrom, dateTo);
+			} else {
+				try {
+					updateDataSetWithGuarantor(dateFrom, dateTo, patientParent, selectedGuarantor);
+				} catch (OHServiceException ohServiceException) {
+					LOGGER.error(ohServiceException.getMessage(), ohServiceException);
+				}
+			}
 		}
 		updateTables();
 		updateTotals();
@@ -176,8 +195,7 @@ public class BillBrowser extends ModalJFrame implements PatientBillListener {
 	private LocalDateTime dateTo = TimeTools.getNow();
 	private LocalDateTime dateToday0 = TimeTools.getDateToday0();
 	private LocalDateTime dateToday24 = TimeTools.getDateToday24();
-	private JComboBox<User> jComboBoxPersonnesGarantes;
-	private static final Dimension PATIENT_DIMENSION = new Dimension(300, 20);
+	private JComboBox<User> jComboBoxGuarantor;
 	private JLabel jLabelGuarantor;
 	private JButton jButtonToday;
 
@@ -226,6 +244,10 @@ public class BillBrowser extends ModalJFrame implements PatientBillListener {
 	private List<String> users;
 	private UserBrowsingManager userBrowserManager = Context.getApplicationContext()
 					.getBean(UserBrowsingManager.class);
+
+	public boolean hasBillGuarantor() {
+		return GeneralData.ALLOWBILLGUARANTOR;
+	}
 
 	public BillBrowser() {
 		try {
@@ -688,22 +710,24 @@ public class BillBrowser extends ModalJFrame implements PatientBillListener {
 	}
 
 	private void updateDataSetWithGuarantor(LocalDateTime dateFrom, LocalDateTime dateTo, Patient patient, User guarantor) throws OHServiceException {
-	    System.out.println("Updating data set with guarantor: " + guarantor.getUserName() + " and patient: " + (patient != null ? patient.getName() : "None")); // Message de débogage
-	    // Bills in the period
-	    if (patient != null) {
-	        billPeriod = billBrowserManager.getBillsWithPatientAndGuarantor(dateFrom, dateTo, patient, guarantor);
-	        paymentsPeriod = billBrowserManager.getPaymentsWithPatientGuarantor(dateFrom, dateTo, patient, guarantor);
-	    } else {
-	        billPeriod = billBrowserManager.getBillsWithGuarantor(dateFrom, dateTo, guarantor);
-	        paymentsPeriod = billBrowserManager.getPaymentsWithGuarantor(dateFrom, dateTo, guarantor); // Change here to avoid calling getPaymentsWithPatientGuarantor
-	    }
+		System.out.println("Updating data set with guarantor: " + guarantor.getUserName() + " and patient: " + (patient != null ? patient.getName() : "None")); // Message
+																																								// de
+																																								// débogage
+		// Bills in the period
+		if (patient != null) {
+			billPeriod = billBrowserManager.getBillsWithPatientAndGuarantor(dateFrom, dateTo, patient, guarantor);
+			paymentsPeriod = billBrowserManager.getPaymentsWithPatientGuarantor(dateFrom, dateTo, patient, guarantor);
+		} else {
+			billPeriod = billBrowserManager.getBillsWithGuarantor(dateFrom, dateTo, guarantor);
+			paymentsPeriod = billBrowserManager.getPaymentsWithGuarantor(dateFrom, dateTo, guarantor); // Change here to avoid calling
+																										// getPaymentsWithPatientGuarantor
+		}
 
-	    // Bills not in the period but with payments in the period
-	    billFromPayments = billBrowserManager.getBillsWithGuarantor(paymentsPeriod, guarantor);
+		// Bills not in the period but with payments in the period
+		billFromPayments = billBrowserManager.getBillsWithGuarantor(paymentsPeriod, guarantor);
 
-	    System.out.println("Bills and payments updated with guarantor"); // Message de débogage
+		System.out.println("Bills and payments updated with guarantor"); // Message de débogage
 	}
-
 
 	private JButton getJButtonNew() {
 		if (jButtonNew == null) {
@@ -815,11 +839,9 @@ public class BillBrowser extends ModalJFrame implements PatientBillListener {
 			panelSupRange.add(getJComboMonths());
 			panelSupRange.add(getJComboYears());
 			panelSupRange.add(getPanelChoosePatient());
-			panelSupRange.add(getJLabelGuarantor());
-			panelSupRange.add(getJComboBoxUserGuarantor());
-
-			if (GeneralData.getGeneralData().ALLOWBILLGUARANTOR) {
-				panelSupRange.add(getJComboBoxUserGuarantor()); // Ajout du JComboBox
+			if (hasBillGuarantor()) {
+				panelSupRange.add(getJLabelGuarantor());
+				panelSupRange.add(getJComboBoxGuarantor());
 			}
 		}
 
@@ -877,43 +899,42 @@ public class BillBrowser extends ModalJFrame implements PatientBillListener {
 			updateTotals();
 		}
 	}
-	
-	private JComboBox<User> getJComboBoxUserGuarantor() {
-	    if (jComboBoxPersonnesGarantes == null) {
-	        jComboBoxPersonnesGarantes = new JComboBox<>();
-	        List<User> users;
-	        try {
-	            jComboBoxPersonnesGarantes.addItem(null);
-	            users = userBrowserManager.getUser();
-	            for (User user : users) {
-	                jComboBoxPersonnesGarantes.addItem(user);
-	            }
-	        } catch (OHServiceException e) {
-	            OHServiceExceptionUtil.showMessages(e);
-	        }
 
-	        jComboBoxPersonnesGarantes.setPreferredSize(new Dimension(150, 25));
-	        jComboBoxPersonnesGarantes.setFont(new Font("Arial", Font.PLAIN, 14));
-	        jComboBoxPersonnesGarantes.addActionListener(actionEvent -> {
-	            User selectedGuarantor = (User) jComboBoxPersonnesGarantes.getSelectedItem();
-	            try {
-	                if (selectedGuarantor != null) {
-	                    System.out.println("Guarantor Selected: " + selectedGuarantor.getUserName()); // Message de débogage
-	                    updateDataSetWithGuarantor(dateFrom, dateTo, patientParent, selectedGuarantor);
-	                } else {
-	                    System.out.println("No Guarantor Selected"); // Message de débogage
-	                    updateDataSet(dateFrom, dateTo, patientParent);
-	                }
-	                updateTables();
-	                updateTotals();
-	            } catch (OHServiceException e) {
-	                e.printStackTrace();
-	            }
-	        });
-	    }
-	    return jComboBoxPersonnesGarantes;
+	private JComboBox<User> getJComboBoxGuarantor() {
+		if (jComboBoxGuarantor == null) {
+			jComboBoxGuarantor = new JComboBox<>();
+			try {
+				jComboBoxGuarantor.addItem(null);
+				List<User> users = userBrowserManager.getUser();
+				for (User user : users) {
+					jComboBoxGuarantor.addItem(user);
+				}
+			} catch (OHServiceException e) {
+				OHServiceExceptionUtil.showMessages(e);
+			}
+
+			jComboBoxGuarantor.setPreferredSize(new Dimension(150, 25));
+			jComboBoxGuarantor.setFont(new Font("Arial", Font.PLAIN, 14));
+			jComboBoxGuarantor.addActionListener(actionEvent -> {
+				User selectedGuarantor = (User) jComboBoxGuarantor.getSelectedItem();
+				try {
+					if (selectedGuarantor != null) {
+						updateDataSetWithGuarantor(dateFrom, dateTo, patientParent, selectedGuarantor);
+					} else if (patientParent == null) {
+						updateDataSet(dateFrom, dateTo);
+					} else {
+						updateDataSet(dateFrom, dateTo, patientParent);
+					}
+
+					updateTables();
+					updateTotals();
+				} catch (OHServiceException e) {
+					e.printStackTrace();
+				}
+			});
+		}
+		return jComboBoxGuarantor;
 	}
-
 
 	private JComboBox<String> getJComboUsers() {
 		if (jComboUsers == null) {
